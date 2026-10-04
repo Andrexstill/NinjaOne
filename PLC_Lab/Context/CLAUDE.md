@@ -57,25 +57,52 @@ All JUMP01 reachability checks passed (502, 5020, 10000, 443, ping to SCADA01).
 
 ## 5. Current state of the observer
 
-`ot_observer.py` (270 lines, sha256 `5c1f08d67f2b69c998082d0d25588f3b6e8cabca9d197311e8940c153950d35e`) is written and syntax-checked but **has not yet run successfully on JUMP01**. Target path: `/root/otmon/ot_observer.py`, mode 700.
+`ot_observer.py` (270 lines, sha256 `5c1f08d67f2b69c998082d0d25588f3b6e8cabca9d197311e8940c153950d35e`) is deployed at `/root/otmon/ot_observer.py` on JUMP01, mode 700, owner root. **Verified working end to end on 2026-10-04**: `--dry-run`, `--init`, and one real cycle all ran cleanly and every written field was confirmed in the NinjaOne console (plc01, plc02, SCADA01, and JUMP01's own Custom tab).
 
 Design: read-only Modbus; state inferred from coils; debounce (2 consecutive failures before LOST); writes only changed JUMP01 fields; `--dry-run`, `--init`, `--loop SECONDS`.
 
-**Open issue:** in an earlier attempt `ninjarmm-cli options otcommsstatus` timed out after 30 s when called from Python, while it is instant in an interactive shell. Hypothesis (unverified): the CLI waits on an inherited stdin. The script now uses `stdin=subprocess.DEVNULL` and a 60 s timeout. First task is to measure CLI call times from Python and confirm or refute this.
+**Resolved issue:** the earlier 30 s `ninjarmm-cli options` hang hypothesis (inherited stdin) is refuted. With `stdin=subprocess.DEVNULL` already in the script, a full `--dry-run` cycle (≈6 CLI calls, including SSH overhead) completed in 0.64 s.
+
+**Access to JUMP01:** `labadmin`'s SSH key is authorized (passwordless). A scoped sudoers rule at `/etc/sudoers.d/otmon-observer` grants `labadmin` NOPASSWD only for `sudo /root/otmon/bin/python3 /root/otmon/ot_observer.py [any args]` — nothing else under `/root` is passwordless. Use `ssh jump01 "sudo -n /root/otmon/bin/python3 /root/otmon/ot_observer.py ..."`.
+
+**Access to OT-HOST01:** `labadmin`'s SSH key is also authorized there (passwordless, via `~/.ssh/config` alias `othost01`, `ProxyJump jump01`). `labadmin` is already in the `docker` group, so `docker ps/stop/start` need no sudo.
+
+**NinjaOne custom field setup note:** text-type custom fields on unmanaged records (`otprotocol`, `otruntime`, `otsoftware`, `otserviceports`) were initially created with a permission level that blocked script/CLI writes (`unmanaged-set` failed with "Unable to update read-only attribute"), while the checkbox field `otagentauthorized` worked. Fixed in the console by setting all script-written custom fields to Read/Write (matching `otagentauthorized`'s setting). Checklist of fields that must stay Read/Write: `otprotocol`, `otruntime`, `otsoftware`, `otserviceports`, `otagentauthorized`, `otprocessstate`, `ottanklevel`, `otcommsstatus`, `otlastobserved`, `otreachability` (unmanaged records) and `otplc01comms`, `otplc02comms`, `otscada01reach`, `otprocessidle`, `otsummary` (JUMP01).
 
 A previous attempt to paste the script as a heredoc over SSH was truncated, leaving a broken file on JUMP01. Transfer files with `scp` and verify with `sha256sum` and `wc -l`. Never paste long heredocs.
 
 ## 6. Remaining tasks (in order)
 
-1. Deploy the observer (verify hash), time CLI calls from Python, run `--dry-run`, then `--init`, then one real cycle. Verify values in the console (Custom tab; the Overview tab only shows some fields).
-2. Failure test AT-01/AT-02: with user approval, `docker stop plc01` on OT-HOST01, confirm `LOST` within 2 cycles, then `docker start plc01` and confirm recovery.
-3. Run the observer as a systemd service (`--loop 60`, restart on failure, journald logging). Do not rely on the NinjaOne scheduler's minimum interval.
-4. Draft the NinjaOne-side objects for the user to create in the console: conditions on the JUMP01 fields, alert, ticket template, and a diagnostic runbook script (read-only).
+1. ~~Deploy the observer (verify hash), time CLI calls from Python, run `--dry-run`, then `--init`, then one real cycle. Verify values in the console.~~ **Done 2026-10-04.**
+2. ~~Failure test AT-01/AT-02: `docker stop plc01` on OT-HOST01, confirm `LOST` within 2 cycles, then `docker start plc01` and confirm recovery.~~ **Done 2026-10-05.** AT-01: cycle 1 after stop stayed `OK` (fails=1&lt;2, debounce holds), cycle 2 flipped to `LOST` (`otProcessState=UNKNOWN`, `otCommsStatus=LOST`, `otPlc01Comms=LOST` on JUMP01) — all confirmed in console. AT-02: one cycle after `docker start plc01` recovered immediately to `OK FILL` (debounce resets `fails=0` on first success) — confirmed in console.
+3. ~~Run the observer as a systemd service (`--loop 60`, restart on failure, journald logging).~~ **Done 2026-10-05.** Unit file `Scripts/ot-observer.service` (repo) installed at `/etc/systemd/system/ot-observer.service`, enabled + started. Confirmed two consecutive cycles 60 s apart in `journalctl -u ot-observer`, `NRestarts=0`. **Caution:** do not run the script manually (even via the NOPASSWD sudoers rule) while the service is active — both would read/write `/root/otmon/state.json` concurrently. Stop the service first (`sudo systemctl stop ot-observer`) for any manual/debug run, then start it again.
+4. ~~Draft the NinjaOne-side objects for the user to create in the console: conditions on the JUMP01 fields, alert, ticket template, and a diagnostic runbook script (read-only).~~ **Drafted 2026-10-05**, runbook script written, deployed and test-run live (read-only, output confirmed). Full spec in section 8. **Still pending:** the user creates the condition/alert/ticket-template objects themselves in the console (no public API, so this can't be scripted) and wires the runbook as the alert's automation.
 5. Squid on JUMP01 bound to 10.10.30.2:3128 with a deny-by-default allowlist of NinjaOne endpoints; restrict 3128 to 10.10.30.0/24; take care not to lock out SSH. Then agent on SCADA01 through the proxy; verify no default route (AT-03/04/05).
 6. State-gated patch window using `otprocessidle`; Rapid SCADA export to a JUMP01 share (C-09); evidence collection.
 
 Acceptance tests AT-01..AT-10 are in section 15 of the Phase 2 document.
 
-## 7. Evidence to keep
+## 8. NinjaOne console objects (task 4 spec, console-only — create manually)
+
+Design source: Phase 2 doc, section 7 ("Observation and alerting pipeline"). Pattern: **alert on the observer (JUMP01), document on the observed (unmanaged records)**. All field names below are the real lowercase keys, not the Phase 2 doc's display names.
+
+**Runbook script** (already deployed): `/root/otmon/ot_diagnostic_runbook.py` on JUMP01 (sha256 `ab2b78f29160022dd4339c78643ff4c84c7adbd361cca70f8aaeb0cd1c7c5cc6`, source in repo at `Scripts/ot_diagnostic_runbook.py`). Read-only (FC3 register 0 + TCP connect checks only, same discipline as the observer). Run it as `sudo /root/otmon/bin/python3 /root/otmon/ot_diagnostic_runbook.py` (covered by the same scoped NOPASSWD sudoers rule). Prints a plain-text report: live Modbus reachability for plc01/plc02, OT-HOST01 port reachability, SCADA01 port reachability, and the observer's last known `state.json`. Test-run live on 2026-10-05, output confirmed correct.
+
+**Conditions** (create 3, each on device JUMP01 / `ubusrv-0a0201-jump01`, evaluating its own custom field — not the unmanaged records):
+1. `otplc01comms` equals `LOST`
+2. `otplc02comms` equals `LOST`
+3. `otscada01reach` equals `LOST`
+
+No extra "for N cycles" debounce needed at the condition level — the observer already debounces (`FAIL_THRESHOLD=2`) before it ever writes `LOST`, so a single-observation condition is correct and matches AT-01's "≤ 2 observer cycles" target.
+
+**Alert**: one alert (or one per condition, technician's choice), severity **Critical**, triggered by the conditions above on JUMP01. Auto-resolve when the field returns to `OK` (matches AT-02: "alert auto-resolves"). Suggested name: `OT Comms Lost — <plc01|plc02|SCADA01>`.
+
+**Automation on alert trigger**: run `/root/otmon/ot_diagnostic_runbook.py` on JUMP01 via the agent's script engine, capture stdout, attach to the ticket (mirrors Phase 2: "Automation: diagnostic runbook ... Ticket updated with runbook output").
+
+**Ticket template** `OT Comms Loss`: Priority **Critical**, tag **Critical OT**, assign to the OT on-call queue/technician group. Description should reference which field tripped and the device's current `otsummary` value; body gets the runbook output appended by the automation above. Leave resolution manual even though the alert auto-resolves — a comms flap on OT kit deserves a human look before the ticket closes.
+
+**Acceptance check once built**: re-run AT-01/AT-02 (`docker stop|start plc01` on OT-HOST01, already proven to flip `otplc01comms` to `LOST`/back to `OK` within the cycles tested in section 6.2) and confirm the alert fires, the ticket is created with the runbook output attached, and the alert auto-resolves on recovery.
+
+## 9. Evidence to keep
 
 Raw command output for each acceptance test, Squid allowlist and access log, `ip route` of SCADA01 and JUMP01, observer logs, NinjaOne activity log screenshots. Strip secrets before saving anything.

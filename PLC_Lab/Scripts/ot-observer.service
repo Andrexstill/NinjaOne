@@ -1,0 +1,18 @@
+[Unit]
+Description=NinjaOne OT Observer (read-only Modbus polling from JUMP01)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/otmon
+ExecStart=/root/otmon/bin/python3 /root/otmon/ot_observer.py --loop 60
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ot-observer
+
+[Install]
+WantedBy=multi-user.target
