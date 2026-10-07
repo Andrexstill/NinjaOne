@@ -13,7 +13,7 @@ Scope decisions already closed (do not reopen):
 - D-1 Scope is PLCs + SCADA + the IDMZ components that govern them. No new PXE/provisioning profiles.
 - D-2 plc01/plc02 are ITAM *unmanaged devices*, fed from JUMP01. No NinjaOne software ever on PLCs or the Docker host.
 - D-3 SCADA01 gets the agent with egress **only** through an HTTP proxy on JUMP01; no default route.
-- D-4 SCADA01 starts as unmanaged-monitorable (fed by the observer); installing the agent converts the same record to managed.
+- D-4 **Revised 2026-10-07, based on what actually happened — see section 4.** Originally: "SCADA01 starts as unmanaged-monitorable (fed by the observer); installing the agent converts the same record to managed." In practice, installing the agent via the console's generic install command did **not** convert/merge the existing unmanaged record — it created a second, independent managed device (`ubusrv-0a0203`). We are keeping both side by side on purpose rather than merging them: it demonstrates both postures NinjaOne can offer on the same physical asset (full agent-managed vs. zero-touch unmanaged-monitorable), which is a better demo than a single converted record. Do not attempt to merge them without a new decision.
 - D-5 Proxy is customer-supplied Squid with a NinjaOne-domain allowlist. NinjaOne Airgap/Proxy are internal roadmap context only; never present them as available.
 - D-6 No Backup agent on SCADA01 (unsupported via proxy). Export Rapid SCADA project to a JUMP01 share instead.
 
@@ -54,6 +54,7 @@ All JUMP01 reachability checks passed (502, 5020, 10000, 443, ping to SCADA01).
 - Checkbox accepts `true`/`false` (read back as 1). Numeric accepts integers. DateTime accepts `YYYY-MM-DDTHH:MM:SS` (UTC).
 - JUMP01 custom fields (created globally, so they also show on the unmanaged records; cleanup is a later nicety): `otplc01comms`, `otplc02comms`, `otscada01reach` (dropdowns OK/LOST/UNKNOWN), `otprocessidle` (checkbox), `otsummary` (text).
 - Test residue currently in the tenant (will be overwritten by the first real cycle): test GUIDs in `otcommsstatus` of plc01/plc02, `otplc01comms`=UNKNOWN, `otprocessidle`=true, a sample `otsummary`, and `otprocessstate`/`ottanklevel` on plc01.
+- **Installing the agent does not convert/merge an existing unmanaged record.** Running the console's generic install command on SCADA01 created a brand-new managed device (`ubusrv-0a0203`) alongside the pre-existing unmanaged `SCADA01` record — they coexist as two separate devices with different names, not one record transitioning state. Confirmed harmless for the observer (name-based resolution in `get_unmanaged_ids()` still finds `SCADA01` uniquely; see hard rule 6). We're keeping both on purpose (see D-4) since it demonstrates two real customer postures on one physical asset. If a true single-record conversion is ever needed, it would likely require installing from that specific unmanaged record's own "Install Agent" action (untested) rather than a generic script — don't assume this works without verifying first.
 
 ## 5. Current state of the observer
 
