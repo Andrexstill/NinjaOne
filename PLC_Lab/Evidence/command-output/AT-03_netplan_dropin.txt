@@ -1,0 +1,1 @@
+=== netplan drop-in that removed SCADA01's stray default route (AT-03) ===

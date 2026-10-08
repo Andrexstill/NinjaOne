@@ -1,0 +1,26 @@
+=== Squid config (deny-by-default allowlist) ===
+# Squid config for the OT reference lab's IDMZ sole-egress proxy (D-3/D-5).
+# Listens only on the ot0 interface (10.10.30.2:3128) -- never on eth0 --
+# so no firewall change is needed to keep this off the enterprise side.
+# Deny-by-default; only the NinjaOne allowlist below is permitted.
+# Source: https://ninjarmm.zendesk.com/hc/en-us/articles/211406886
+# (NinjaOne Global Allowlist Information, fetched 2026-10-07).
+
+http_port 10.10.30.2:3128
+
+acl ot_net src 10.10.30.0/24
+acl SSL_ports port 443
+acl CONNECT method CONNECT
+
+acl ninjaone_allowed dstdomain .ninjarmm.com .ninjarmm.net .ingest.sentry.io ninja-attachments.s3.us-west-2.amazonaws.com ninjauploads.s3.amazonaws.com .cloudfront.net
+
+http_access deny CONNECT !SSL_ports
+http_access allow localhost manager
+http_access deny manager
+http_access allow ot_net ninjaone_allowed
+http_access deny all
+
+visible_hostname jump01-squid
+cache_dir none /var/spool/squid
+coredump_dir /var/spool/squid
+access_log /var/log/squid/access.log squid

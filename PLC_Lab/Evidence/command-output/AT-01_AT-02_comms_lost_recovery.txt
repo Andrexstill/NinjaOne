@@ -1,0 +1,33 @@
+AT-01/AT-02: plc01 failure + recovery, observer debounce (FAIL_THRESHOLD=2)
+Captured live during this session (2026-10-04/05 and re-validated 2026-10-07).
+
+--- docker stop plc01 on OT-HOST01 ---
+$ docker stop plc01 && docker ps --format '{{.Names}}\t{{.Status}}'
+plc01
+plc02   Up 5 days (healthy)
+
+--- Cycle 1 after stop (fails=1 < threshold 2 -> debounce holds at OK) ---
+Connection to (10.10.30.10, 502) failed: [Errno 111] Connection refused
+2026-10-04T22:13:50Z plc01 OK | plc02 OK CONSUME 73% | SCADA01 OK | idle=False
+
+--- Cycle 2 after stop (fails=2 >= threshold -> LOST) ---
+Connection to (10.10.30.10, 502) failed: [Errno 111] Connection refused
+2026-10-04T22:13:56Z plc01 LOST | plc02 OK CONSUME 67% | SCADA01 OK | idle=False
+
+NinjaOne console confirmed (screenshots 6-7): plc01 otProcessState=UNKNOWN,
+otCommsStatus=LOST; JUMP01 otPlc01Comms=LOST, otSummary matches the line above.
+
+--- docker start plc01 ---
+$ docker start plc01 && sleep 2 && docker ps --format '{{.Names}}\t{{.Status}}'
+plc01
+plc01   Up 2 seconds (health: starting)
+plc02   Up 5 days (healthy)
+
+--- First cycle after restart (single success resets fails=0 immediately -> OK) ---
+2026-10-04T22:16:10Z plc01 OK FILL 43% | plc02 OK REQUEST 31% | SCADA01 OK | idle=False
+
+NinjaOne console confirmed (screenshots 8-9): plc01 otCommsStatus=OK,
+otProcessState=FILL, otLastObserved refreshed; JUMP01 otPlc01Comms=OK.
+
+Re-validated 2026-10-07 through the real console pipeline (not just the
+observer's own field writes) -- see AT-condition-ticket-pipeline.txt.

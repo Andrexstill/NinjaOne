@@ -1,0 +1,1 @@
+=== Scoped NOPASSWD sudoers rule on JUMP01 (observer + runbook only) ===

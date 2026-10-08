@@ -1,0 +1,41 @@
+=== ot-observer.service unit + status ===
+# /etc/systemd/system/ot-observer.service
+[Unit]
+Description=NinjaOne OT Observer (read-only Modbus polling from JUMP01)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/otmon
+ExecStart=/root/otmon/bin/python3 /root/otmon/ot_observer.py --loop 60
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ot-observer
+
+[Install]
+WantedBy=multi-user.target
+---
+● ot-observer.service - NinjaOne OT Observer (read-only Modbus polling from JUMP01)
+     Loaded: loaded (/etc/systemd/system/ot-observer.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2026-10-05 00:20:06 CEST; 3 days ago
+   Main PID: 568417 (python3)
+      Tasks: 1 (limit: 4467)
+     Memory: 14.0M (peak: 15.5M)
+        CPU: 57.762s
+     CGroup: /system.slice/ot-observer.service
+             └─568417 /root/otmon/bin/python3 /root/otmon/ot_observer.py --loop 60
+
+Oct 08 16:50:11 ubusrv-0a0201 ot-observer[568417]: 2026-10-08T14:50:11Z plc01 OK READY 85% | plc02 OK CONSUME 68% | SCADA01 OK | idle=True
+Oct 08 16:51:11 ubusrv-0a0201 ot-observer[568417]: 2026-10-08T14:51:11Z plc01 OK READY 85% | plc02 OK CONSUME 68% | SCADA01 OK | idle=True
+Oct 08 16:52:11 ubusrv-0a0201 ot-observer[568417]: 2026-10-08T14:52:11Z plc01 OK READY 85% | plc02 OK CONSUME 68% | SCADA01 OK | idle=True
+Oct 08 16:53:11 ubusrv-0a0201 ot-observer[568417]: 2026-10-08T14:53:11Z plc01 OK READY 85% | plc02 OK CONSUME 68% | SCADA01 OK | idle=True
+Oct 08 16:54:12 ubusrv-0a0201 ot-observer[568417]: 2026-10-08T14:54:12Z plc01 OK READY 85% | plc02 OK CONSUME 68% | SCADA01 OK | idle=True
+Oct 08 16:55:12 ubusrv-0a0201 ot-observer[568417]: 2026-10-08T14:55:12Z plc01 OK READY 85% | plc02 OK CONSUME 68% | SCADA01 OK | idle=True
+Oct 08 16:56:12 ubusrv-0a0201 ot-observer[568417]: 2026-10-08T14:56:12Z plc01 OK READY 85% | plc02 OK CONSUME 68% | SCADA01 OK | idle=True
+Oct 08 16:57:12 ubusrv-0a0201 ot-observer[568417]: 2026-10-08T14:57:12Z plc01 OK READY 85% | plc02 OK CONSUME 68% | SCADA01 OK | idle=True
+Oct 08 16:58:12 ubusrv-0a0201 ot-observer[568417]: 2026-10-08T14:58:12Z plc01 OK READY 85% | plc02 OK CONSUME 68% | SCADA01 OK | idle=True
+Oct 08 16:59:12 ubusrv-0a0201 ot-observer[568417]: 2026-10-08T14:59:12Z plc01 OK READY 85% | plc02 OK CONSUME 68% | SCADA01 OK | idle=True

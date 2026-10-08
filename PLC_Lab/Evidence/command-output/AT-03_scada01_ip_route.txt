@@ -1,0 +1,7 @@
+=== AT-03: SCADA01 ip route (no default route) ===
+10.10.10.0/24 dev eth0 proto kernel scope link src 10.10.10.100 metric 100 
+10.10.10.10 dev eth0 proto dhcp scope link src 10.10.10.100 metric 100 
+10.10.30.0/24 dev ot0 proto kernel scope link src 10.10.30.20 
+
+=== AT-03: direct egress attempt (should fail, no default route) ===
+HTTP 000

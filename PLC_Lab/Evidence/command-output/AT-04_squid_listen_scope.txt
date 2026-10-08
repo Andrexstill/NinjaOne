@@ -1,0 +1,2 @@
+=== AT-04/AT-05: Squid listening only on ot0, never on eth0/0.0.0.0 ===
+LISTEN 0      256            10.10.30.2:3128       0.0.0.0:*          

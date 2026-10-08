@@ -1,0 +1,52 @@
+End-to-end validation of the Condition -> Alert -> Runbook -> Ticket
+pipeline for OT_PLC01_Comms_Lost (task 4 acceptance check), captured
+2026-10-07 from the NinjaOne console (ticket #1012 activity log and
+JUMP01's device Activities log). Root cause of the first failed
+attempt: the 3 conditions were created on a device-level override
+instead of the policy (Berlin_Lab_Linux_Server) actually assigned to
+JUMP01 -- fixed, then re-tested twice.
+
+--- JUMP01 device Activities (chronological) ---
+12:23 PM  Condition   Custom Field Condition Triggered
+          Custom Fields condition was matched: 'OT_PLC01_Comms_Lost'
+12:23 PM  Ticketing   Ticket Created
+          Ticket #1012 created by condition.
+12:24 PM  Script      Started
+          Running Script: OT Diagnostic Runbook Variables:
+12:24 PM  Script      Completed
+          Action completed: Run OT Diagnostic Runbook Result: SUCCESS
+          Output: ... Connection to (10.10.30.10, 502) failed: [Errno 111]
+          Connection refused
+          OT diagnostic runbook -- 2026-10-07T10:24:59Z
+          -- Live Modbus reachability (FC3, read-only) --
+          plc01 (10.10.30.10:502): UNREACHABLE
+          plc02 (10.10.30.10:5020): OK
+          -- OT-HOST01 Docker host reachability --
+          10.10.30.10: at least one published PLC port open
+          -- SCADA01 service ports --
+          10.10.30.20:10000: OPEN
+          10.10.30.20:443: OPEN
+          -- Observer last known state (state.json) --
+          { "fails": { "plc01": 13, ... } ... }
+12:25 PM  Condition   Custom Field Condition Reset
+          Reset condition: 'Custom Fields'
+
+--- Ticket #1012 activity (chronological) ---
+12:24 PM  Ticket created on condition triggered. Condition Rule: OT Comms Loss
+          Device: ubusrv-0a0201-jump01 | Policy: Berlin_Lab_Linux_Server
+          Priority: High | Severity: Critical | Status: New
+          Subject: Condition: OT_PLC01_Comms_Lost | Tags: Critical_OT
+12:25 PM  Ticket updated on condition reset. Condition Rule: OT Comms Loss
+          Status: New -> Resolved
+
+--- Re-trigger while ticket was Resolved (not Closed), flapping/retest ---
+docker stop plc01 a second time while ticket #1012 was already Resolved:
+the SAME ticket #1012 reopened to status Open (no duplicate #1013 created),
+matching the "Append to existing ticket (if not closed)" retrigger rule.
+docker start plc01 again -> ticket #1012 returned to Resolved.
+
+Known gap (documented, not a defect): the runbook's text output lands in
+JUMP01's own Activity log (Automations/Script group) but is not copied
+into the ticket body/activity -- two independent reactions to the same
+condition, not a pipeline. The ticket plus the device Activity log
+together already carry everything a technician needs.

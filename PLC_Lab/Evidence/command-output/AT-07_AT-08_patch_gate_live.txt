@@ -1,0 +1,4 @@
+=== AT-07/AT-08: patch gate live run, process idle right now ===
+2026-10-08T15:00:28Z plc01=READY plc02=CONSUME tank2=68%
+2026-10-08T15:00:28Z PROCEED: process idle, safe to patch
+EXIT=0
