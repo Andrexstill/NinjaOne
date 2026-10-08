@@ -1,0 +1,37 @@
+AT-07/AT-08: patch-window gate, full cycle captured live 2026-10-08.
+Script: Scripts/ot_patch_gate.py on SCADA01 (/opt/ot-patchgate/).
+
+--- Baseline: process idle, safe to patch (AT-08) ---
+$ sudo /opt/ot-patchgate/bin/python3 /opt/ot-patchgate/ot_patch_gate.py
+2026-10-08T07:18:03Z plc01=READY plc02=CONSUME tank2=68%
+2026-10-08T07:18:03Z PROCEED: process idle, safe to patch
+EXIT_CODE=0
+
+--- docker stop plc01 on OT-HOST01, then gate check (AT-07, fail-closed path) ---
+$ docker stop plc01
+plc01
+plc02   Up 9 days (healthy)
+
+$ sudo /opt/ot-patchgate/bin/python3 /opt/ot-patchgate/ot_patch_gate.py
+Connection to (10.10.30.10, 502) failed: [Errno 111] Connection refused
+2026-10-08T14:29:32Z ABORT: could not read one or both PLCs live -- failing closed
+EXIT=1
+
+--- docker start plc01, container resumes cycle from FILL (not idle) ---
+$ docker start plc01 && sleep 5
+$ sudo /opt/ot-patchgate/bin/python3 /opt/ot-patchgate/ot_patch_gate.py
+2026-10-08T14:29:51Z plc01=FILL plc02=CONSUME tank2=68%
+2026-10-08T14:29:51Z ABORT: process not idle, do not patch/reboot
+EXIT=1
+
+--- Cycle continues, reaches READY+CONSUME again (AT-08, proceed again) ---
+$ sudo /opt/ot-patchgate/bin/python3 /opt/ot-patchgate/ot_patch_gate.py
+2026-10-08T14:30:20Z plc01=READY plc02=CONSUME tank2=68%
+2026-10-08T14:30:20Z PROCEED: process idle, safe to patch
+EXIT=0
+
+All three states observed in one continuous test: both abort paths
+(comms read failure, busy process state) and the proceed path. Script
+is self-contained on SCADA01 -- no cross-device custom-field read, no
+NinjaOne API token anywhere, same read-only Modbus discipline (FC3
+only) as the observer.

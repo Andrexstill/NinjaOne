@@ -1,0 +1,2 @@
+=== Scoped NOPASSWD sudoers rule on SCADA01 (patch-gate script only) ===
+labadmin ALL=(root) NOPASSWD: /opt/ot-patchgate/bin/python3 /opt/ot-patchgate/ot_patch_gate.py

@@ -1,0 +1,2 @@
+=== SCADA01 export cron + sample export run ===
+0 2 * * * root /opt/ot-export/ot_scada_export.sh >> /var/log/ot-scada-export.log 2>&1

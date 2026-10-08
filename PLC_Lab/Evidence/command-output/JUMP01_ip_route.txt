@@ -1,0 +1,6 @@
+=== JUMP01 ip route (dual-homed: eth0 default + ot0 connected) ===
+default via 10.10.10.1 dev eth0 proto dhcp src 10.10.10.124 metric 100 
+10.10.10.0/24 dev eth0 proto kernel scope link src 10.10.10.124 metric 100 
+10.10.10.1 dev eth0 proto dhcp scope link src 10.10.10.124 metric 100 
+10.10.10.10 dev eth0 proto dhcp scope link src 10.10.10.124 metric 100 
+10.10.30.0/24 dev ot0 proto kernel scope link src 10.10.30.2 
