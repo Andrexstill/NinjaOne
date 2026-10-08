@@ -91,7 +91,9 @@ Task 5 is now fully done.
    - **Operator convenience tool — done.** `Scripts/ot-host.mk` (repo) deployed as `~/Makefile` on OT-HOST01 (`labadmin`'s home, no root needed — `docker` group membership is enough). Manual-only, never invoked by NinjaOne or any automation: targets are `status`, `logs-plc01`/`logs-plc02`, `stop/start/restart-plc01`/`-plc02`, `restart-all`. Exists so the OT team has a one-line way to restart a stalled container (e.g. `make restart-plc01`) without reaching for raw `docker` commands — this is exactly the "stop the services before touching anything" pattern from the patch-gate decision above, just available on demand instead of only during a scheduled window.
    - **Rapid SCADA export (C-09) — done.** `/opt/scada` on SCADA01 holds the application (large, reinstallable from the `rapidscada` .deb) plus the actual project/config data we care about: `BaseDAT/`, `Config/`, `Views/`, `Archive/`, `Project.txt`, `Version.txt`, and each service's own `Config/` dir. `Scripts/ot_scada_export.sh` (repo, on SCADA01 at `/opt/ot-export/`) tars just that data and pushes it by SFTP to a landing zone on JUMP01, scheduled via `/etc/cron.d/ot-scada-export` (daily, 02:00 UTC). Landing zone: a dedicated `scadaexport` system user on JUMP01 (`ChrootDirectory /srv/ot-exports/scada01`, `ForceCommand internal-sftp`, config at `Scripts/60-scadaexport-sftp.conf` in `/etc/ssh/sshd_config.d/`) — key-only, no shell, chrooted, scoped to one user so it can't affect `labadmin`/root SSH. The SFTP key pair was generated **on SCADA01** (`/root/.ssh/scada_export_key`) so the private half never left the device; only the public half was added to `scadaexport`'s `authorized_keys`. Verified: `sshd -t` passed before `systemctl reload ssh` (not restart) and a fresh SSH session confirmed `labadmin` access was unaffected; a manual export run landed `scada_export_<timestamp>.tar.gz` (~1 MB) correctly inside the chroot.
    - **NinjaOne Backup (AT-10) — done.** Backup module already enabled tenant-wide (bucket `ca-central-1`). Created a File/Folder backup plan on JUMP01 (`ubusrv-0a0201-jump01`) named `SCADA01 Export Backup`, source path `/srv/ot-exports/scada01/incoming`, daily schedule, 30 revisions kept — picks up each day's export as a distinct restore point.
-   - **Still open: final evidence collection** (section 9).
+   - ~~Final evidence collection~~ **Done 2026-10-08.** See `Evidence/` (README, command-output, screenshots) — see section 9 below.
+
+All 6 tasks of this phase are now complete.
 
 Acceptance tests AT-01..AT-10 are in section 15 of the Phase 2 document.
 
@@ -122,4 +124,4 @@ No extra "for N cycles" debounce needed at the condition level — the observer 
 
 ## 9. Evidence to keep
 
-Raw command output for each acceptance test, Squid allowlist and access log, `ip route` of SCADA01 and JUMP01, observer logs, NinjaOne activity log screenshots. Strip secrets before saving anything.
+**Done 2026-10-08.** Collected in `Evidence/` (`README.md` has the AT-01..AT-10 → file mapping; `command-output/` has the raw command/log evidence; `screenshots/` has the console captures with an `index.md`). Secrets were checked for and none found before committing.
